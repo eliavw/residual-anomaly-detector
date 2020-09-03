@@ -16,8 +16,12 @@ class ResidualAnomalyDetector:
         significance_level=0.05,
         clf_kwargs=dict(),
         rgr_kwargs=dict(),
+        verbose=VERBOSE,
         **algorithm_kwargs
     ):
+        # General params
+        self.verbose = verbose
+
         # Metadata
         self.n_instances = None
         self.n_attributes = None
@@ -63,6 +67,15 @@ class ResidualAnomalyDetector:
             self._update_labels(outlier_idxs)
             n_anomalies_after = self.n_anomalies
             progress_to_be_made = n_anomalies_after > n_anomalies_start
+
+            if self.verbose:
+                msg = """
+                In this iteration, I found anomalies: {}
+                Total n_anomalies now: {}
+                """.format(
+                    outlier_idxs, self.n_anomalies
+                )
+                print(msg)
 
         self._scores = self._get_scores()
 
@@ -111,7 +124,6 @@ class ResidualAnomalyDetector:
 
             x = X[:, desc_ids]
             y = X[:, targ_ids]
-            print(y.shape)
 
             self.models[m_idx].fit(x, y)
 
@@ -138,12 +150,13 @@ class ResidualAnomalyDetector:
         labels = self.labels
         all_residuals = self.residuals
         flt_residuals = all_residuals[labels == 0, :]
+        flt_label_idx = np.arange(self.n_instances, dtype=int)[labels == 0]
         nrm_residuals = self.normalize_residuals(flt_residuals)
         degrees_of_freedom = nrm_residuals.shape[0]
 
         return (
             np.max(nrm_residuals, axis=0),
-            np.argmax(nrm_residuals, axis=0),
+            flt_label_idx[np.argmax(nrm_residuals, axis=0)],
             degrees_of_freedom,
         )
 
@@ -158,7 +171,7 @@ class ResidualAnomalyDetector:
 
     @staticmethod
     def _get_critical_t_value(a=0.05, dof=100):
-        p = 1.0 - a/2
+        p = 1.0 - a / 2
         return t.ppf(p, dof)
 
     def _detect_outliers(self):
@@ -167,6 +180,22 @@ class ResidualAnomalyDetector:
             a=self.significance_level, dof=dof - 2
         )
         grubbs_threshold = self._get_grubbs_threshold(dof, critical_t_value)
+
+        if self.verbose:
+            msg = """
+            potential_outlier_idxs: {}
+            critical_t_value(dof={}, significance={}): {}
+            grubbs_statistic: {}
+            grubbs_threshold: {}
+            """.format(
+                potential_outlier_idxs,
+                dof,
+                self.significance_level,
+                critical_t_value,
+                grubbs_statistic,
+                grubbs_threshold,
+            )
+            print(msg)
 
         attributes_with_outliers = np.where(grubbs_statistic > grubbs_threshold)[0]
         outlier_idxs = potential_outlier_idxs[attributes_with_outliers]
