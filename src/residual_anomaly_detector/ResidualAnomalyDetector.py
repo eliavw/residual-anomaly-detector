@@ -7,10 +7,19 @@ class ResidualAnomalyDetector:
     classifiers = dict(dt=DecisionTreeClassifier)
     regressors = dict(dt=DecisionTreeRegressor)
 
-    def __init__(self, classifier="dt", regressor="dt"):
+    def __init__(
+        self,
+        classifier="dt",
+        regressor="dt",
+        clf_kwargs=dict(),
+        rgr_kwargs=dict(),
+        **algorithm_kwargs
+    ):
         # Algorithms
         self.regressor_algorithm = regressor
         self.classifier_algorithm = classifier
+        self.classifier_config = {**clf_kwargs, **algorithm_kwargs}
+        self.regressor_config = {**rgr_kwargs, **algorithm_kwargs}
         self._desc_ids = None
         self._targ_ids = None
 
@@ -28,6 +37,9 @@ class ResidualAnomalyDetector:
         self.attr_ids = self.n_attributes
         self.nominal_ids = nominal_ids
 
+        self._init_models(X)
+        self._fit_models(X)
+
         return
 
     def predict(X):
@@ -35,13 +47,18 @@ class ResidualAnomalyDetector:
 
     # Private Methods
     def _init_models(self, X):
-        self._models = []
+        self.models = [
+            self.classifier_algorithm(**self.classifier_config)
+            if a in self.nominal_ids
+            else self.regressor_algorithm(**self.regressor_config)
+            for a in self.attr_ids
+        ]
         return
 
     def _fit_models(self, X):
-        self._models = [
-            m.fit(X[:, desc_ids]) for m, desc_ids in zip(self.models, self.desc_ids)
-        ]
+        for m_idx, desc_ids in range(self.n_models):
+            self.models[m_idx].fit(X[:, self.desc_ids[m_idx]])
+            
         return
 
     def _predict_models(self, X_true):
@@ -59,6 +76,17 @@ class ResidualAnomalyDetector:
     @property
     def models(self):
         return self._models
+
+    @models.setter
+    def models(self, value):
+        assert isinstance(value, list)
+        assert len(value) == self.n_attributes, "The amount of models must equal the amount of attributes"
+        self._models = value
+        return 
+
+    @property
+    def n_models(self):
+        return len(self.models)
 
     @property
     def residuals(self):
@@ -105,7 +133,7 @@ class ResidualAnomalyDetector:
     @attr_ids.setter
     def attr_ids(self, n):
         self._attr_ids = set(range(n))
-        return 
+        return
 
     @property
     def nominal_ids(self):
@@ -117,7 +145,7 @@ class ResidualAnomalyDetector:
             self._nominal_ids = set()
         else:
             self._nominal_ids = set(value)
-        return 
+        return
 
     @property
     def numeric_ids(self):
