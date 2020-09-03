@@ -158,7 +158,7 @@ class ResidualAnomalyDetector:
 
     @staticmethod
     def _get_critical_t_value(a=0.05, dof=100):
-        p = 1.0 - a
+        p = 1.0 - a/2
         return t.ppf(p, dof)
 
     def _detect_outliers(self):
