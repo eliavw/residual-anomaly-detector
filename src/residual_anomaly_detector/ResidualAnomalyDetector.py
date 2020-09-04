@@ -59,7 +59,11 @@ class ResidualAnomalyDetector:
         # Get Scores
         self._labels = self._init_labels()
         self._residuals = self._get_residuals(X)
+        self._scores = self._get_scores()
 
+        return
+
+    def predict(self):
         progress_to_be_made = True
         while progress_to_be_made:
             n_anomalies_start = self.n_anomalies
@@ -76,13 +80,7 @@ class ResidualAnomalyDetector:
                     outlier_idxs, self.n_anomalies
                 )
                 print(msg)
-
-        self._scores = self._get_scores()
-
-        return
-
-    def predict(self, X):
-        raise NotImplementedError("Nope.")
+        return self.labels
 
     @staticmethod
     def normalize_residuals(residuals):
@@ -144,7 +142,7 @@ class ResidualAnomalyDetector:
         return X_true - X_pred
 
     def _get_scores(self):
-        return self.normalize_residuals(self.residuals)
+        return np.max(self.normalize_residuals(self.residuals),axis=1)
 
     def _get_grubbs_statistic(self):
         labels = self.labels
