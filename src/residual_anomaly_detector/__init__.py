@@ -9,6 +9,7 @@ try:
     # imports
     from . import exps
     from .exps import *
+    from . import ResidualAnomalyDetector
     from .ResidualAnomalyDetector import ResidualAnomalyDetector
     
 except DistributionNotFound:
